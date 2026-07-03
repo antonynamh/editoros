@@ -401,9 +401,9 @@ body {
 
   .app-container {
     flex-direction: column;
+    overflow-x: hidden;
   }
 
-  /* sidebar vira offcanvas */
   .sidebar {
     position: fixed;
     top: 0;
@@ -412,6 +412,7 @@ body {
     width: 260px;
     z-index: 999;
     transition: 0.25s ease;
+    overflow-x: hidden;
   }
 
   .sidebar.active {
