@@ -1,432 +1,365 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Inter', sans-serif;
+const APP_VERSION = "1.0";
+document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
+
+/* =========================
+   EDITOR OS - STATE
+========================= */
+
+let projects = JSON.parse(localStorage.getItem("projects")) || [];
+let ideas = JSON.parse(localStorage.getItem("ideas")) || [];
+let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+let currentProject = JSON.parse(localStorage.getItem("currentProject")) || null;
+let energyState = JSON.parse(localStorage.getItem("energyState")) || null;
+let monthName = localStorage.getItem("monthName") || "";
+
+/* =========================
+   INIT
+========================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupNavigation();
+  renderAll();
+  setupEvents();
+});
+
+/* =========================
+   NAVIGATION
+========================= */
+
+function setupNavigation() {
+  const menuItems = document.querySelectorAll(".menu-item");
+
+  menuItems.forEach(item => {
+    item.addEventListener("click", () => {
+      document.querySelector(".menu-item.active").classList.remove("active");
+      item.classList.add("active");
+
+      const section = item.getAttribute("data-section");
+
+      document.querySelectorAll(".section").forEach(sec => {
+        sec.classList.remove("active");
+      });
+
+      document.getElementById(section).classList.add("active");
+    });
+  });
 }
 
-body {
-  background: #0f0f10;
-  color: #e6e6e6;
-  overflow-x: hidden;
+/* =========================
+   EVENTS
+========================= */
+
+function setupEvents() {
+
+  /* PROJETO */
+  document.getElementById("saveProject").addEventListener("click", () => {
+    const name = document.getElementById("projectName").value;
+    const status = document.getElementById("projectStatus").value;
+    const platform = document.getElementById("projectPlatform").value;
+
+    if (!name) return;
+
+    projects.push({ id: Date.now(), name, status, platform });
+
+    saveProjects();
+    renderProjects();
+
+    bootstrap.Modal.getInstance(document.getElementById("projectModal")).hide();
+
+    document.getElementById("projectName").value = "";
+    document.getElementById("projectStatus").value = "";
+    document.getElementById("projectPlatform").value = "";
+  });
+
+  /* IDEIA */
+  document.getElementById("saveIdea").addEventListener("click", () => {
+    const title = document.getElementById("ideaTitle").value;
+    if (!title) return;
+
+    ideas.push({ id: Date.now(), title });
+
+    saveIdeas();
+    renderIdeas();
+
+    bootstrap.Modal.getInstance(document.getElementById("ideaModal")).hide();
+    document.getElementById("ideaTitle").value = "";
+  });
+
+  /* MÊS */
+  document.getElementById("monthName").value = monthName;
+
+  document.getElementById("monthName").addEventListener("input", (e) => {
+    monthName = e.target.value;
+    localStorage.setItem("monthName", monthName);
+  });
+
+  document.getElementById("addTaskBtn").addEventListener("click", () => {
+    const input = document.getElementById("newTaskInput");
+    if (!input.value) return;
+
+    tasks.push({
+      id: Date.now(),
+      text: input.value,
+      done: false
+    });
+
+    input.value = "";
+    saveTasks();
+    renderTasks();
+  });
+
+  /* ENERGIA */
+  document.querySelectorAll(".btn-energy").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const level = btn.getAttribute("data-energy");
+
+      energyState = level;
+      localStorage.setItem("energyState", JSON.stringify(energyState));
+
+      renderEnergy();
+    });
+  });
 }
 
-/* LAYOUT PRINCIPAL */
-.app-container {
-  display: flex;
-  height: 100vh;
+/* =========================
+   RENDER ALL
+========================= */
+
+function renderAll() {
+  renderProjects();
+  renderIdeas();
+  renderTasks();
+  renderEnergy();
+  renderCurrentProject();
+   renderStats();
 }
 
-/* SIDEBAR */
-.sidebar {
-  width: 260px;
-  background: #161618;
-  border-right: 1px solid #242428;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
+/* =========================
+   PROJECTS
+========================= */
+
+function saveProjects() {
+  localStorage.setItem("projects", JSON.stringify(projects));
 }
 
-.sidebar-header {
-  margin-bottom: 30px;
+function renderProjects() {
+  const table = document.getElementById("projectsTable");
+  table.innerHTML = "";
+
+  projects.forEach(p => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${p.name}</td>
+      <td>${p.status}</td>
+      <td>${p.platform}</td>
+      <td>
+        <button class="btn btn-sm btn-warning" onclick="setCurrent(${p.id})">⭐</button>
+        <button class="btn btn-sm btn-info" onclick="editProject(${p.id})">✏</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteProject(${p.id})">🗑</button>
+      </td>
+    `;
+
+    table.appendChild(row);
+  });
+
+  renderCurrentProject();
 }
 
-.logo {
-  font-size: 20px;
-  font-weight: 600;
-  color: #ffffff;
-  letter-spacing: 0.5px;
+function setCurrent(id) {
+  currentProject = projects.find(p => p.id === id);
+  localStorage.setItem("currentProject", JSON.stringify(currentProject));
+  renderCurrentProject();
 }
 
-.menu {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+function renderCurrentProject() {
+  const container = document.getElementById("currentProject");
 
-.menu-item {
-  background: transparent;
-  border: none;
-  color: #b5b5b5;
-  text-align: left;
-  padding: 12px 14px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: 0.2s;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.menu-item i {
-  font-size: 16px;
-}
-
-.menu-item:hover {
-  background: #222226;
-  color: #fff;
-}
-
-.menu-item.active {
-  background: #2a2a30;
-  color: #fff;
-}
-
-/* MAIN */
-.main {
-  flex: 1;
-  padding: 30px;
-  overflow-y: auto;
-}
-
-/* TOPBAR */
-.topbar {
-  margin-bottom: 25px;
-}
-
-.topbar h1 {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.topbar p {
-  color: #9a9a9a;
-  font-size: 14px;
-  max-width: 700px;
-}
-
-/* SEÇÕES */
-.section {
-  display: none;
-  animation: fadeIn 0.2s ease-in;
-}
-
-.section.active {
-  display: block;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* CARDS */
-.card-custom {
-  background: #18181b;
-  border: 1px solid #26262c;
-  border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 16px;
-}
-
-.card-custom h4 {
-  font-size: 15px;
-  margin-bottom: 10px;
-  color: #fff;
-}
-
-.card-custom p,
-.card-custom li {
-  color: #bdbdbd;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.card-custom ul {
-  margin-left: 18px;
-}
-
-/* ALERTA */
-.card-custom.warning {
-  border-left: 3px solid #7c5cff;
-}
-
-/* DESTAQUE */
-.card-custom.highlight {
-  border-left: 3px solid #4a4a4a;
-}
-
-/* PROJETO ATUAL */
-#currentProject p {
-  margin: 0;
-}
-
-/* BOTÕES ENERGIA */
-.energy-buttons {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.btn-energy {
-  flex: 1;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid #2b2b31;
-  background: #1c1c20;
-  color: #bdbdbd;
-  cursor: pointer;
-  transition: 0.2s;
-  font-size: 13px;
-}
-
-.btn-energy:hover {
-  background: #2a2a30;
-  color: #fff;
-}
-
-.btn-energy.active {
-  background: #7c5cff;
-  border-color: #7c5cff;
-  color: #fff;
-}
-
-/* ENERGIA TAREFAS */
-.energy-tasks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.energy-tag {
-  background: #222226;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #cfcfcf;
-}
-
-/* SEÇÃO HEADER */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.section-header h2 {
-  font-size: 18px;
-}
-
-/* TABELA */
-.table {
-  background: transparent !important;
-  color: #ddd;
-}
-
-.table thead th {
-  border-bottom: 1px solid #2a2a2a !important;
-  font-size: 12px;
-  color: #9a9a9a;
-}
-
-.table tbody td {
-  border-top: 1px solid #1f1f1f !important;
-  font-size: 13px;
-}
-
-/* IDEIAS */
-.ideas-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.idea-card {
-  background: #18181b;
-  border: 1px solid #26262c;
-  padding: 14px;
-  border-radius: 12px;
-}
-
-.idea-card h5 {
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-/* MÊS */
-.month-input {
-  width: 180px;
-  background: #18181b;
-  border: 1px solid #26262c;
-  color: #fff;
-}
-
-.add-task {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.add-task input {
-  background: #18181b;
-  border: 1px solid #26262c;
-  color: #fff;
-}
-
-.task-list {
-  list-style: none;
-  padding: 0;
-}
-
-.task-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #1a1a1d;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.task-list input[type="checkbox"] {
-  transform: scale(1.2);
-}
-
-/* BOTÕES GLOBAIS */
-.btn-primary {
-  background: #7c5cff !important;
-  border: none !important;
-}
-
-.btn-primary:hover {
-  background: #6a4df0 !important;
-}
-
-.btn-secondary {
-  background: #2a2a2a !important;
-  border: none !important;
-}
-
-/* RESPONSIVO */
-@media (max-width: 768px) {
-  .app-container {
-    flex-direction: column;
+  if (!currentProject) {
+    container.innerHTML = `<p class="muted">Nenhum projeto selecionado</p>`;
+    return;
   }
 
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    overflow-x: auto;
-  }
+  container.innerHTML = `
+    <h5>${currentProject.name}</h5>
+    <p>Status: ${currentProject.status}</p>
+    <p>Plataforma: ${currentProject.platform}</p>
+  `;
+}
 
-  .menu {
-    flex-direction: row;
-  }
+function deleteProject(id) {
+  projects = projects.filter(p => p.id !== id);
+  saveProjects();
+  renderProjects();
+}
 
-  .main {
-    padding: 16px;
-  }
+function editProject(id) {
+  const p = projects.find(p => p.id === id);
+  if (!p) return;
 
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+  const newName = prompt("Nome:", p.name);
+  const newStatus = prompt("Status:", p.status);
+  const newPlatform = prompt("Plataforma:", p.platform);
+
+  if (newName) p.name = newName;
+  if (newStatus) p.status = newStatus;
+  if (newPlatform) p.platform = newPlatform;
+
+  saveProjects();
+  renderProjects();
+}
+
+/* =========================
+   IDEAS
+========================= */
+
+function saveIdeas() {
+  localStorage.setItem("ideas", JSON.stringify(ideas));
+}
+
+function renderIdeas() {
+  const container = document.getElementById("ideasContainer");
+  container.innerHTML = "";
+
+  ideas.forEach(i => {
+    const div = document.createElement("div");
+    div.className = "idea-card";
+
+    div.innerHTML = `
+      <h5>${i.title}</h5>
+      <button class="btn btn-sm btn-info" onclick="editIdea(${i.id})">Editar</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteIdea(${i.id})">Excluir</button>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+function deleteIdea(id) {
+  ideas = ideas.filter(i => i.id !== id);
+  saveIdeas();
+  renderIdeas();
+}
+
+function editIdea(id) {
+  const i = ideas.find(i => i.id === id);
+  const newTitle = prompt("Editar ideia:", i.title);
+
+  if (newTitle) {
+    i.title = newTitle;
+    saveIdeas();
+    renderIdeas();
   }
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+/* =========================
+   TASKS (MONTH)
+========================= */
+
+function saveTasks() {
+  localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
-@media (max-width: 900px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+function renderTasks() {
+  const list = document.getElementById("taskList");
+  list.innerHTML = "";
+
+  tasks.forEach(t => {
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <div>
+        <input type="checkbox" ${t.done ? "checked" : ""} onchange="toggleTask(${t.id})">
+        <span style="margin-left:10px">${t.text}</span>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="deleteTask(${t.id})">🗑</button>
+    `;
+
+    list.appendChild(li);
+  });
 }
 
-.dashboard-grid-2 {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+function toggleTask(id) {
+  const task = tasks.find(t => t.id === id);
+  task.done = !task.done;
+
+  saveTasks();
+  renderTasks();
 }
 
-@media (max-width: 900px) {
-  .dashboard-grid-2 {
-    grid-template-columns: 1fr;
-  }
-}
-.sidebar-footer{
-    margin-top:auto;
-    padding:20px;
-    border-top:1px solid rgba(255,255,255,.08);
-
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:4px;
-
-    opacity:.65;
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  saveTasks();
+  renderTasks();
 }
 
-.sidebar-footer h4{
-    margin:0;
-    font-size:15px;
-    font-weight:600;
-    color:white;
+/* =========================
+   ENERGY
+========================= */
+
+function renderEnergy() {
+  document.querySelectorAll(".btn-energy").forEach(btn => {
+    btn.classList.remove("active");
+    if (btn.getAttribute("data-energy") === energyState) {
+      btn.classList.add("active");
+    }
+  });
+
+  const container = document.getElementById("energyTasks");
+
+  let map = {
+    alta: ["Editar", "Motion", "After Effects", "Sound Design"],
+    media: ["Roteiro", "Referências", "Planejamento"],
+    baixa: ["Organizar pastas", "Baixar músicas", "Responder clientes"]
+  };
+
+  container.innerHTML = "";
+
+  if (!energyState) return;
+
+  map[energyState].forEach(task => {
+    const span = document.createElement("span");
+    span.className = "energy-tag";
+    span.textContent = task;
+    container.appendChild(span);
+  });
 }
 
-.sidebar-footer p{
-    margin:0;
-    font-size:13px;
-    color:#9ca3af;
+function renderStats() {
+  const projectsCount = projects.length;
+  const ideasCount = ideas.length;
+
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.done).length;
+  const taskProgress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
+
+  const container = document.getElementById("statsContainer");
+
+  container.innerHTML = `
+    <div class="card-custom">
+      <h4>📁 Projetos</h4>
+      <p>Total: ${projectsCount}</p>
+      <p>Ativo: ${currentProject ? currentProject.name : "Nenhum"}</p>
+    </div>
+
+    <div class="card-custom">
+      <h4>💡 Ideias</h4>
+      <p>Total: ${ideasCount}</p>
+    </div>
+
+    <div class="card-custom">
+      <h4>📅 Tarefas do Mês</h4>
+      <p>Total: ${totalTasks}</p>
+      <p>Concluídas: ${doneTasks}</p>
+      <p>Progresso: ${taskProgress}%</p>
+    </div>
+  `;
 }
 
-.sidebar-footer span{
-    font-size:12px;
-    color:#8b5cf6;
-}
+const sidebar = document.getElementById("sidebar");
+const openBtn = document.getElementById("openSidebar");
 
-
-/* BOTÃO MOBILE */
-.mobile-menu-btn {
-  display: none;
-  background: #1c1c20;
-  border: 1px solid #2a2a2a;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 18px;
-}
-
-/* MOBILE BEHAVIOR */
-@media (max-width: 768px) {
-
-  .app-container {
-    flex-direction: column;
-  }
-
-  /* sidebar vira offcanvas */
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: -260px;
-    height: 100vh;
-    width: 260px;
-    z-index: 999;
-    transition: 0.25s ease;
-  }
-
-  .sidebar.active {
-    left: 0;
-  }
-
-  .mobile-menu-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-}
+openBtn.addEventListener("click", () => {
+  sidebar.classList.toggle("active");
+});
